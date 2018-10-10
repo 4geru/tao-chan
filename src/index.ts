@@ -1,7 +1,15 @@
 import { Client, SpeechBuilder, Middleware } from '@line/clova-cek-sdk-nodejs';
 import * as express from 'express';
+import { Client as PostgresClient } from 'pg';
+
+const postgres = new PostgresClient({
+          connectionString: 'postgres://ckhojlvptsccke:4c48adcffc1247812de0e1ac6985fd1bd129310f3da567d0019cf82b0dc2aa8b@ec2-184-72-234-230.compute-1.amazonaws.com:5432/d20frin1sr7g6u',
+          ssl: true,
+});
 
 const app = express();
+
+postgres.connect();
 
 const launchHandler = async responseHelper => {
   responseHelper.setSimpleSpeech(
@@ -12,21 +20,18 @@ const launchHandler = async responseHelper => {
 const intentHandler = async responseHelper => {
   const intent = responseHelper.getIntentName();
   const sessionId = responseHelper.getSessionId();
-
+  saveUserId(responseHelper.getUser().userId);
+  console.log(responseHelper.getUser().userId)
+  console.log(intent == 'remaining_towel')
   switch (intent) {
-    case 'KinokoIntent':
+    case 'remaining_towel':
       responseHelper.setSimpleSpeech(
-        SpeechBuilder.createSpeechText('きのこのこのこ元気の子')
+        SpeechBuilder.createSpeechText('明日洗濯しよう！')
       );
       break;
-    case 'Clova.YesIntent':
+    case 'used_towel':
       responseHelper.setSimpleSpeech(
-        SpeechBuilder.createSpeechText('はいはい')
-      );
-      break;
-    case 'Clova.NoIntent':
-      responseHelper.setSimpleSpeech(
-        SpeechBuilder.createSpeechText('いえいえ')
+        SpeechBuilder.createSpeechText('タオル使ったんだね')
       );
       break;
     default:
@@ -46,11 +51,18 @@ const sessionEndedHandler = async responseHelper => { };
     .onSessionEndedRequest(sessionEndedHandler)
     .handle();
 
-const clovaMiddleware = Middleware({ applicationId: process.env.APPLICATION_ID });
+const clovaMiddleware = Middleware({ applicationId: 'com.4geru.tao' });
 
 app.post('/clova', clovaMiddleware, clovaHandler);
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 2000;
 app.listen(port, () => {
   console.log(`Server running on ${port}`);
 });
+
+const saveUserId = (userId) => {
+  const sql = `INSERT INTO users (user_id) VALUES('${userId}') RETURNING *`;
+  postgres.query(sql, (err, res) => {
+    console.log(err ? `already inserted user_id ${userId}` : res.rows[0])
+  })
+}
